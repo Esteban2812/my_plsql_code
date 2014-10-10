@@ -1,0 +1,52 @@
+set serveroutput on
+/
+declare 
+      x_doc   xmltype;
+      domdoc  dbms_xmldom.DOMDocument;
+      domnode dbms_xmldom.DOMNode;
+      domtext dbms_xmldom.DOMText;
+      ostream sys.utl_BinaryOutputStream;
+      chunksize pls_integer;
+      offset    pls_integer := 1;
+      buf       raw(32767);
+      image     blob;
+      i         pls_integer:=1;
+begin
+  select xmlelement("image"
+              ,xmlelement("id",t.id)
+              ,xmlelement("name",t.name)
+              ,xmlelement("content")
+              )
+              ,t.content
+  into x_doc
+      ,image
+  from images t
+  where t.id = 1;
+  
+  domdoc := dbms_xmldom.newDOMDocument(x_doc);
+  
+  domnode := dbms_xslprocessor.SelectSingleNode(dbms_xmldom.makenode(domdoc), '/image/content');
+  domtext := dbms_xmldom.createTextNode(domdoc,null);
+  domnode := dbms_xmldom.appendChild(domnode,dbms_xmldom.makeNode(domtext));
+  
+  ostream := dbms_xmldom.setNodeValueAsBinaryStream(domnode);
+  chunksize := dbms_lob.getChunkSize(image);
+  
+  loop
+    begin
+      dbms_lob.read(image,chunksize ,offset,buf);
+    exception
+      when no_data_found then 
+        exit;
+    end;
+    /*dbms_output.put_line(i);
+    i := i + 1;*/
+  end loop;
+  
+  ostream.flush();
+  ostream.close();
+  
+  dbms_xmldom.writeToFile(domdoc,'EXAMPLEDIR/text.xml');
+  dbms_xmldom.freeDocument(domdoc);
+  
+end;
