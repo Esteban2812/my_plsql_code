@@ -1,0 +1,32 @@
+--CREATE DIRECTORY exampleDir AS 'C:\files';
+
+/*create table images(
+id integer,
+name varchar2(256),
+content blob
+);*/
+
+declare 
+  bf        bfile := bfilename('EXAMPLEDIR','workmates.txt');
+  lob_ptr   blob;
+  dest_offs integer := 1;
+  src_offs  integer  := 1;
+begin
+  insert into images(id, name, content)
+  values(1,'workmates.txt',empty_blob())
+  returning content into lob_ptr;
+  
+  dbms_lob.open(bf, dbms_lob.lob_readonly);
+  dbms_lob.loadblobfromfile(lob_ptr, bf, dbms_lob.getlength(bf), dest_offs, src_offs);
+  dbms_lob.close(bf);
+end;
+  
+/
+
+commit;
+
+select  id
+        ,name
+        ,utl_raw.cast_to_varchar2(dbms_lob.substr(content,30)) as first_bytes 
+        ,dbms_lob.getlength(content) as lob_size
+        from images;
